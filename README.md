@@ -1,4 +1,4 @@
-update readme # tweet-delete · `feature/delete`
+
 
 A Node.js CLI tool that bulk-deletes tweets from your X (Twitter) archive by calling X's internal GraphQL API. This branch adds real deletion on top of the dry-run scaffold in `main`.
 
