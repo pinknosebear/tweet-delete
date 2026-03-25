@@ -154,10 +154,3 @@ tweet-delete/
 ```
 
 ---
-
-## Branches
-
-| Branch | What it does |
-|---|---|
-| `main` | Dry-run only — parses and logs, no deletions |
-| `feature/delete` | Wires up the X GraphQL API to actually delete tweets ← **you are here** |
