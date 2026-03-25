@@ -2,20 +2,28 @@ require('dotenv').config();
 
 const { parseTweets } = require('./parseArchive');
 const { loadExclusions } = require('./parseExclusions');
+const { buildDeleteRequest, executeRequest } = require('./deleteTweet');
 
 const excludeSet = loadExclusions(process.env.EXCLUDE_FILE);
 
 const CONFIG = {
-    DELAY: 20,
+    DELAY: 500,
     DRY_RUN: true,
-    LIMIT: 50
+    LIMIT: 1
 };
 
 async function main() {
     const tweets = parseTweets(process.env.ARCHIVE_PATH);
-
     const batch = tweets.slice(0, CONFIG.LIMIT);
-    const skipStats = { retweet: 0, missingId: 0};
+ 
+    const skipStats = { retweet: 0, missingId: 0, excluded: 0};
+
+    const auth = {
+        QUERY_ID: process.env.QUERY_ID,
+        BEARER_TOKEN: process.env.BEARER_TOKEN,
+        CSRF_TOKEN: process.env.CSRF_TOKEN,
+        COOKIE: process.env.COOKIE
+    };
 
     console.log(`Processing ${batch.length} tweets..\n`);
 
@@ -42,8 +50,24 @@ async function main() {
 
         console.log(`[${i + 1}] ${tweet.full_text}`);
 
-    }
+        const req = buildDeleteRequest(tweet.id, auth);
+  
 
+        if (!auth.BEARER_TOKEN || !auth.CSRF_TOKEN || !auth.COOKIE) {
+            throw new Error("Missing auth headers");
+        }
+            
+        if (CONFIG.DRY_RUN) {
+            console.log("DRY RUN REQUEST:");
+            console.log(JSON.stringify(req, null, 2));
+        } else {
+            const ok = await executeRequest(req);
+            console.log(ok ? "✓" : "✗");
+        }
+        console.log("\nSKIP STATS:", skipStats);
+
+        await new Promise(r => setTimeout(r, CONFIG.DELAY));
+    }
 }
 
 main();
