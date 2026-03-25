@@ -1,36 +1,40 @@
-require('dotenv').config();
+require("dotenv").config();
+const fs = require("fs");
+const { exec } = require("child_process");
+const { runCurl } = require("./runCurl");
 
-const { parseTweets } = require('./parseArchive');
-const { loadExclusions } = require('./parseExclusions');
+const { parseTweets } = require("./parseArchive");
+const { loadExclusions } = require("./parseExclusions");
+const { prepareCurlTemplate } = require("./parseCurlTemplate");
 
-const excludeSet = loadExclusions(process.env.EXCLUDE_FILE);
+const excludeSet = loadExclusions("./data/exclude.txt");
+const curlTemplate = prepareCurlTemplate("./data/rawCurl.txt");
 
 const CONFIG = {
-    DELAY: 20,
-    DRY_RUN: true,
-    LIMIT: 50
+    DELAY: 5000,
+    DRY_RUN: false,
+    LIMIT: 2
 };
 
 async function main() {
-    const tweets = parseTweets(process.env.ARCHIVE_PATH);
-
+    const tweets = parseTweets("./data/tweets.js");
     const batch = tweets.slice(0, CONFIG.LIMIT);
-    const skipStats = { retweet: 0, missingId: 0};
+    const skipStats = { retweet: 0, missingId: 0, excluded: 0 };
 
-    console.log(`Processing ${batch.length} tweets..\n`);
+    console.log(`Processing ${batch.length} tweets...\n`);
 
-    for (let i=0; i < batch.length; i++) {
+    for (let i = 0; i < batch.length; i++) {
         const tweet = batch[i];
 
         if (!tweet.id) {
             skipStats.missingId++;
-            console.log(`SKIP [missingId]`);
+            console.log("SKIP [missingId]");
             continue;
         }
 
         if (excludeSet.has(tweet.id)) {
-            skipStats.excluded = (skipStats.excluded || 0) + 1;
-            console.log(`SKIP [excluded]: ${tweet.id} ${tweet.full_text}`);
+            skipStats.excluded++;
+            console.log(`SKIP [excluded]: ${tweet.id}`);
             continue;
         }
 
@@ -42,8 +46,21 @@ async function main() {
 
         console.log(`[${i + 1}] ${tweet.full_text}`);
 
-    }
+        const command = curlTemplate.replace("%TWEET_ID%", tweet.id);
 
+        if (CONFIG.DRY_RUN) {
+            console.log("DRY RUN CURL:");
+            console.log(command);
+        } else {
+            console.log("Executing curl...");
+            const ok = await runCurl(command);
+            console.log(ok ? "✓" : "✗");
+            
+        }
+
+        console.log("\nSKIP STATS:", skipStats, "\n");
+        await new Promise(r => setTimeout(r, CONFIG.DELAY));
+    }
 }
 
 main();
