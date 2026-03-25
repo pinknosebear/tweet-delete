@@ -1,6 +1,9 @@
 require('dotenv').config();
 
 const { parseTweets } = require('./parseArchive');
+const { loadExclusions } = require('./parseExclusions');
+
+const excludeSet = loadExclusions(process.env.EXCLUDE_FILE);
 
 const CONFIG = {
     DELAY: 20,
@@ -22,6 +25,12 @@ async function main() {
         if (!tweet.id) {
             skipStats.missingId++;
             console.log(`SKIP [missingId]`);
+            continue;
+        }
+
+        if (excludeSet.has(tweet.id)) {
+            skipStats.excluded = (skipStats.excluded || 0) + 1;
+            console.log(`SKIP [excluded]: ${tweet.id} ${tweet.full_text}`);
             continue;
         }
 
